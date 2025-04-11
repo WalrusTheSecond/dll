@@ -128,6 +128,9 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
     @Override
     public T removeLast() {
+        if(isEmpty()) {
+            throw new NoSuchElementException();
+        } 
         Node<T> returnNode = this.tail;
         this.tail = this.tail.getPrev();
         this.size--;
@@ -152,6 +155,45 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
         return nodeReturn.getElement();
     }
+
+    /**  
+     * Removes and returns the element at the specified index. 
+     *
+     * @param index the index of the element to be retrieved
+     * @return the element at the given index
+     * @throws IndexOutOfBoundsException if the index is out of range (index < 0 || index >= size)
+     */
+    @Override
+    public T remove(int index) {
+        if (index < 0 || index >= size){
+            throw new IndexOutOfBoundsException();
+        } 
+        Node<T> nodeReturn;
+        T element;
+        if(index == 0){
+            element = this.head.getElement();
+            removeFirst();
+        } else if(index == this.size-1){
+            element = this.tail.getElement();
+            removeLast();
+        } else {
+            Node<T> curNode = this.head;
+            for(int i = 0; i < index; i++){
+                curNode = curNode.getNext();
+            }
+            element = curNode.getElement();
+            curNode.getPrev().setNext(curNode.getNext());
+            curNode.getNext().setPrev(curNode.getPrev());
+        }
+        this.size--;
+        this.modCount++;
+
+        return element;
+    }
+
+
+
+
 
     @Override
     public boolean contains(T target) {
@@ -179,7 +221,9 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
     @Override
     public boolean isEmpty() {
-        // TODO Auto-generated method stub
+        if(size == 0){
+            return true;
+        } 
         return false;
     }
 
@@ -265,11 +309,7 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
     }
 
-    @Override
-    public T remove(int index) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+    
 
     
 
