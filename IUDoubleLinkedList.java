@@ -129,6 +129,11 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
         } 
         Node<T> returnNode = this.head;
         this.head = this.head.getNext();
+        if (head != null){
+            head.setPrev(null);
+        } else {
+            tail = null;
+        }
         this.size--;
         this.modCount++;
         return returnNode.getElement();
@@ -141,6 +146,11 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
         } 
         Node<T> returnNode = this.tail;
         this.tail = this.tail.getPrev();
+        if(tail != null){
+            tail.setNext(null);
+        } else {
+            head = null;
+        }
         this.size--;
         this.modCount++;
         return returnNode.getElement();
@@ -202,9 +212,10 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
             element = curNode.getElement();
             curNode.getPrev().setNext(curNode.getNext());
             curNode.getNext().setPrev(curNode.getPrev());
+            this.size--;
+            this.modCount++;
         }
-        this.size--;
-        this.modCount++;
+        
 
         return element;
     }
@@ -412,11 +423,17 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
         @Override
         public boolean hasNext() {
+            if(modCount != iterModCount) {
+                throw new ConcurrentModificationException();
+            }
             return nextNode != null;
         }
 
         @Override
         public boolean hasPrevious() {
+            if(modCount != iterModCount) {
+                throw new ConcurrentModificationException();
+            }
             return prevNode != null;
         }
 
