@@ -47,7 +47,7 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
     @Override
     public void addAfter(T element, T target) {
         if (isEmpty()) {
-            throw new NoSuchElementException("List is empty.");
+            throw new NoSuchElementException();
         }
     
         // Find the target node.
@@ -80,8 +80,7 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
             current = current.getNext();
         }
     
-        // If the target was never found, signal the error.
-        throw new NoSuchElementException("Target not found in the list.");
+        throw new NoSuchElementException();
     }
 
     @Override
@@ -93,7 +92,6 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
         Node<T> newNode = new Node<>(element);
 
         if (index == 0) {
-            // Add to front
             if (isEmpty()) {
                 this.head = this.tail = newNode;
             } else {
@@ -102,12 +100,10 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
                 this.head = newNode;
             }
         } else if (index == this.size) {
-            // Add to rear
             newNode.setPrev(this.tail);
             this.tail.setNext(newNode);
             this.tail = newNode;
         } else {
-            // Insert in middle
             Node<T> current = this.head;
             for (int i = 0; i < index; i++) {
                 current = current.getNext();
@@ -166,17 +162,14 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
         while (current != null) {
             if (current.getElement().equals(element)) {
-                // Handle removal of head
                 if (current == head) {
                     return removeFirst();
                 }
 
-                // Handle removal of tail
                 if (current == tail) {
                     return removeLast();
                 }
 
-                // Removal from the middle
                 current.getPrev().setNext(current.getNext());
                 current.getNext().setPrev(current.getPrev());
 
@@ -187,7 +180,7 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
             current = current.getNext();
         }
 
-        throw new NoSuchElementException("Element not found in the list.");
+        throw new NoSuchElementException();
     }
 
     
