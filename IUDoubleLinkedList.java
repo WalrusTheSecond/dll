@@ -1,3 +1,4 @@
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
@@ -17,7 +18,8 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
             this.head = this.tail = newNode;
         } else {
             newNode.setNext(this.head);
-            newNode = this.head;
+            this.head.setPrev(newNode);
+            this.head = newNode;
         }
         this.size++;
         this.modCount++;
@@ -30,7 +32,8 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
             this.head = this.tail = newNode;
         } else {
             newNode.setPrev(this.tail);
-            newNode = this.tail;
+            this.tail.setNext(newNode);
+            this.tail = newNode;
         }
         this.size++;
         this.modCount++;
@@ -43,75 +46,80 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
     @Override
     public void addAfter(T element, T target) {
-        Node<T> currNode = this.head;
-        int count = 0;
+        if (isEmpty()) {
+            throw new NoSuchElementException("List is empty.");
+        }
     
-        if (isEmpty()){
-            throw new NoSuchElementException();
-        }
-		while(count < this.size) {
-
-            if(currNode.getElement() == target){
-                Node<T> node = new Node<T>(element);
-                Node<T> prevNode = currNode.getNext();
-                node.setNext(currNode.getNext());
-				currNode.setNext(node);
-                node.setPrev(currNode);
-                prevNode.setPrev(node);
-
-				this.size++;
-				this.modCount++;
-				return;
+        // Find the target node.
+        Node<T> current = head;
+        while (current != null) {
+            // Use safe equality check to account for potential nulls.
+            if ((target == null && current.getElement() == null) ||
+                (target != null && target.equals(current.getElement()))) {
+                // Target found. Create a new node.
+                Node<T> newNode = new Node<>(element);
+    
+                // Set newNode's pointers:
+                newNode.setPrev(current);
+                newNode.setNext(current.getNext());
+    
+                // Attach newNode after current.
+                current.setNext(newNode);
+                
+                // If current was not the tail, update the next node's previous pointer.
+                if (newNode.getNext() != null) {
+                    newNode.getNext().setPrev(newNode);
+                } else {  // Otherwise, newNode becomes the new tail.
+                    tail = newNode;
+                }
+                
+                size++;
+                modCount++;
+                return;
             }
-			currNode = currNode.getNext();
-            count++;
-
-			if(count == this.size){
-				throw new NoSuchElementException();
-			}
+            current = current.getNext();
         }
-	}
+    
+        // If the target was never found, signal the error.
+        throw new NoSuchElementException("Target not found in the list.");
+    }
 
     @Override
     public void add(int index, T element) {
         if (index < 0 || index > this.size) {
             throw new IndexOutOfBoundsException();
         }
-        Node<T> newNode = new Node(element);
-        if (index == 0){
-            this.head = newNode;
-            if (this.size == 0){
-                this.tail = newNode;
-            }
-            this.size++;
-            this.modCount++;
-            return;
-        } else {
-            Node<T> currNode = this.head;
-            for(int i = 1; i < this.size; i++){
-                if(i == index){
-                    Node<T> prevNode = currNode.getNext();
-                    if(currNode == this.tail){
-                        newNode.setPrev(currNode);
-                        currNode.setNext(newNode);
-                        this.tail = newNode;
-                        this.size++;
-                        this.modCount++;
-                        return;
-                    }
-                    newNode.setNext(currNode.getNext());
-				    currNode.setNext(newNode);
-                    newNode.setPrev(currNode);
-                    prevNode.setPrev(newNode);
-                    this.size++;
-                    this.modCount++;
-                    return;
 
-                }
-            currNode = currNode.getNext();
-        } 
+        Node<T> newNode = new Node<>(element);
+
+        if (index == 0) {
+            // Add to front
+            if (isEmpty()) {
+                this.head = this.tail = newNode;
+            } else {
+                newNode.setNext(this.head);
+                this.head.setPrev(newNode);
+                this.head = newNode;
+            }
+        } else if (index == this.size) {
+            // Add to rear
+            newNode.setPrev(this.tail);
+            this.tail.setNext(newNode);
+            this.tail = newNode;
+        } else {
+            // Insert in middle
+            Node<T> current = this.head;
+            for (int i = 0; i < index; i++) {
+                current = current.getNext();
+            }
+            newNode.setNext(current);
+            newNode.setPrev(current.getPrev());
+            current.getPrev().setNext(newNode);
+            current.setPrev(newNode);
         }
-        
+
+        this.size++;
+        this.modCount++;
     }
 
     @Override
@@ -140,31 +148,41 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
     @Override
     public T remove(T element) {
-        Node<T> currNode = this.head;
-        Node<T> nodeReturn = null;
-        int count = 0;
-        while(currNode.getElement() != element){
-            currNode = currNode.getNext();
-            count++;
-            if(count == this.size){
-                throw new NoSuchElementException();
-            }
+        if (isEmpty()) {
+            throw new NoSuchElementException();
         }
-        nodeReturn = currNode;
 
+        Node<T> current = this.head;
 
-        return nodeReturn.getElement();
+        while (current != null) {
+            if (current.getElement().equals(element)) {
+                // Handle removal of head
+                if (current == head) {
+                    return removeFirst();
+                }
+
+                // Handle removal of tail
+                if (current == tail) {
+                    return removeLast();
+                }
+
+                // Removal from the middle
+                current.getPrev().setNext(current.getNext());
+                current.getNext().setPrev(current.getPrev());
+
+                this.size--;
+                this.modCount++;
+                return current.getElement();
+            }
+            current = current.getNext();
+        }
+
+        throw new NoSuchElementException("Element not found in the list.");
     }
 
-    /**  
-     * Removes and returns the element at the specified index. 
-     *
-     * @param index the index of the element to be retrieved
-     * @return the element at the given index
-     * @throws IndexOutOfBoundsException if the index is out of range (index < 0 || index >= size)
-     */
+    
     @Override
-    public T remove(int index) {
+    public T remove(int index) { 
         if (index < 0 || index >= size){
             throw new IndexOutOfBoundsException();
         } 
@@ -191,32 +209,83 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
         return element;
     }
 
-
-
-
-
     @Override
-    public boolean contains(T target) {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    @Override
-    public T first() {
-        // TODO Auto-generated method stub
-        return null;
+    public void set(int index, T element) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+        Node<T> curNode = this.head;
+        for (int i = 0; i < index; i++) {
+            curNode = curNode.getNext();
+        }
+        curNode.setElement(element);
+        this.modCount++;
     }
 
     @Override
     public T get(int index) {
-        // TODO Auto-generated method stub
-        return null;
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+        Node<T> curNode = head;
+        for (int i = 0; i < index; i++) {
+            curNode = curNode.getNext();
+        }
+        return curNode.getElement();
     }
 
     @Override
     public int indexOf(T element) {
-        // TODO Auto-generated method stub
-        return 0;
+        Node<T> current = head;
+        int index = 0;
+    
+        while (current != null) {
+            if ((element == null && current.getElement() == null) ||
+                (element != null && element.equals(current.getElement()))) {
+                return index;
+            }
+            current = current.getNext();
+            index++;
+        }
+    
+        return -1;  // Element not found
+    }
+
+    @Override
+    public T first() {
+        if (isEmpty()) {
+            throw new NoSuchElementException();
+        }
+        Node<T> firstNode = this.head;
+        return firstNode.getElement();
+    }
+
+    @Override
+    public T last() {
+        if (isEmpty()) {
+            throw new NoSuchElementException();
+        }
+        Node<T> lastNode = this.tail;
+        return lastNode.getElement();
+    }
+
+    @Override
+    public boolean contains(T target) {
+        Node<T> current = head;
+    
+		while (current != null) {
+			if (current.getElement().equals(target)) {
+				return true; 
+			}
+			current = current.getNext();
+		}
+		
+		return false; 
+    }
+
+    @Override
+    public int size() {
+        return this.size;
     }
 
     @Override
@@ -228,83 +297,207 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
     }
 
     @Override
+    public String toString() {
+		if (isEmpty()) {
+			return "[]"; // Return empty brackets if the list is empty
+		}
+	
+		String result = "[";
+		Node<T> current = head;
+	
+		while (current != null) {
+			result += current.getElement(); // Append element
+			if (current.getNext() != null) {
+				result += ", "; // Add a comma separator if there's a next element
+			}
+			current = current.getNext();
+		}
+	
+		result += "]";
+		return result;
+	}
+
+
+
+
+
+    @Override
     public Iterator<T> iterator() {
         // TODO Auto-generated method stub
         return new DLLlistIterator();
     }
 
-    @Override
-    public T last() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+    
 
     @Override
     public ListIterator<T> listIterator() {
-        // TODO Auto-generated method stub
         return new DLLlistIterator();
     }
 
     @Override
     public ListIterator<T> listIterator(int startingIndex) {
-        // TODO Auto-generated method stub
-        return new DLLlistIterator();
+        return new DLLlistIterator(startingIndex);
     }
 
     private class DLLlistIterator implements ListIterator<T> {
+        private Node<T> nextNode;
+        private Node<T> prevNode;
+        private Node<T> lastReturned;
+        private int index;
+        private int iterModCount;
+
+        public DLLlistIterator() {
+            this(0);
+        }
+
+        public DLLlistIterator(int startIndex) {
+            if (startIndex < 0 || startIndex > size){
+                throw new IndexOutOfBoundsException();
+            }
+            nextNode = head;
+            for (int i = 0; i < startIndex; i++) {
+                nextNode = nextNode.getNext();
+            }
+
+            prevNode = (nextNode == null) ? tail : nextNode.getPrev();
+            lastReturned = null;
+            index = startIndex;
+            iterModCount = modCount;
+        }
+
+
 
         @Override
         public void add(T e) {
-            // TODO Auto-generated method stub
-            
-        }
-
-        @Override
-        public boolean hasNext() {
-            // TODO Auto-generated method stub
-            return false;
-        }
-
-        @Override
-        public boolean hasPrevious() {
-            // TODO Auto-generated method stub
-            return false;
-        }
-
-        @Override
-        public T next() {
-            // TODO Auto-generated method stub
-            return null;
-        }
-
-        @Override
-        public int nextIndex() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public T previous() {
-            // TODO Auto-generated method stub
-            return null;
-        }
-
-        @Override
-        public int previousIndex() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public void remove() {
-            // TODO Auto-generated method stub
-            
+            if (iterModCount != modCount) {
+                throw new ConcurrentModificationException();
+            }
+    
+            Node<T> newNode = new Node<>(e);
+    
+            newNode.setPrev(prevNode);
+            newNode.setNext(nextNode);
+    
+            if (prevNode != null) {
+                prevNode.setNext(newNode);
+            } else {
+                head = newNode;
+            }
+    
+            if (nextNode != null) {
+                nextNode.setPrev(newNode);
+            } else {
+                tail = newNode;
+            }
+    
+            prevNode = newNode;
+            size++;
+            index++;
+            modCount++;
+            iterModCount++;
+            lastReturned = null;
         }
 
         @Override
         public void set(T e) {
-            // TODO Auto-generated method stub
-            
+            if (iterModCount != modCount) {
+                throw new ConcurrentModificationException();
+            }
+            if (lastReturned == null) {
+                throw new IllegalStateException();
+            }
+    
+            lastReturned.setElement(e);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextNode != null;
+        }
+
+        @Override
+        public boolean hasPrevious() {
+            return prevNode != null;
+        }
+
+        @Override
+        public T next() {
+            if (modCount != iterModCount) {
+                throw new ConcurrentModificationException();
+            }
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            lastReturned = nextNode;
+            prevNode = nextNode;
+            nextNode = nextNode.getNext();
+            index++;
+            return lastReturned.getElement();
+        }
+
+        @Override
+        public int nextIndex() {
+            return index;
+        }
+
+        @Override
+        public T previous() {
+            if (iterModCount != modCount) {
+                throw new ConcurrentModificationException();
+            }
+            if (!hasPrevious()) {
+                throw new NoSuchElementException();
+            }
+
+            lastReturned = prevNode;
+            nextNode = prevNode;
+            prevNode = prevNode.getPrev();
+            index--;
+            return lastReturned.getElement();
+        }
+        
+
+        @Override
+        public int previousIndex() {
+            return index - 1;
+        }
+
+        @Override
+        public void remove() {
+            if (iterModCount != modCount) {
+                throw new ConcurrentModificationException();
+            }
+            if (lastReturned == null) {
+                throw new IllegalStateException();
+            }
+    
+            Node<T> toRemove = lastReturned;
+    
+            if (toRemove == head) {
+                head = toRemove.getNext();
+                if (head != null) head.setPrev(null);
+            } else {
+                toRemove.getPrev().setNext(toRemove.getNext());
+            }
+    
+            if (toRemove == tail) {
+                tail = toRemove.getPrev();
+                if (tail != null) tail.setNext(null);
+            } else {
+                toRemove.getNext().setPrev(toRemove.getPrev());
+            }
+    
+            if (toRemove == prevNode) {
+                prevNode = toRemove.getPrev();
+                index--;
+            } else {
+                nextNode = toRemove.getNext();
+            }
+    
+            size--;
+            modCount++;
+            iterModCount++;
+            lastReturned = null;
         }
 
     }
@@ -315,17 +508,9 @@ public class IUDoubleLinkedList<T> implements IndexedUnsortedList<T> {
 
     
 
-    @Override
-    public void set(int index, T element) {
-        // TODO Auto-generated method stub
-        
-    }
+    
 
-    @Override
-    public int size() {
-        // TODO Auto-generated method stub
-        return 0;
-    }
+    
 
     
 }
